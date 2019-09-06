@@ -23,10 +23,10 @@ def average_model(net_avg, net_toavg):
         param_avg.data.add_(0.5, param_toavg.data)
     return None
 
-def model_Bcast(bcast_model,prevBcast, opt, r, alpha):
+def model_Bcast(bcast_model, opt, r, alpha):
 
-    for bcast_group, prev_group, group in zip(bcast_model.param_groups, prevBcast.param_groups, opt.param_groups):
-        for p_bcast, p_prev, p in zip(bcast_group['params'],prev_group['params'], group['params']):
+    for bcast_group, group in zip(bcast_model.param_groups, opt.param_groups):
+        for p_bcast, p in zip(bcast_group['params'], group['params']):
 
             param_state = opt.state[p]
             if 'momentum_buffer' not in param_state:
@@ -34,22 +34,17 @@ def model_Bcast(bcast_model,prevBcast, opt, r, alpha):
             else:
                 buf = param_state['momentum_buffer']
 
-            prev_param_state = prevBcast.state[p_prev]
-            if 'momentum_buffer' not in prev_param_state:
-                buf_prev = prev_param_state['momentum_buffer'] = torch.zeros_like(p.data)
-            else:
-                buf_prev = prev_param_state['momentum_buffer']
-
             param_state_bcast = bcast_model.state[p_bcast]
             if 'momentum_buffer' not in param_state_bcast:
                 param_state_bcast['momentum_buffer'] = torch.zeros_like(p.data)
+            buf_bcast = param_state_bcast['momentum_buffer']
 
-            if r==1:
+            if r==0:
                param_state_bcast['momentum_buffer']=buf
             elif p.grad is None:
-               param_state_bcast['momentum_buffer'] = ((buf_prev * alpha) + (buf * 1 - alpha)) * 0.9
+               param_state_bcast['momentum_buffer']  = ((buf_bcast * alpha) + (buf * (1 - alpha))) * 0.9
             else:
-               param_state_bcast['momentum_buffer'] = (((buf_prev * alpha) + (buf * (1 - alpha))) * 0.9) + p.grad.data
+               param_state_bcast['momentum_buffer'] = (((buf_bcast * alpha) + (buf * (1 - alpha))) * 0.9) + p.grad.data
     return None
 def average_momentum(opt_avg, opt):
     # opt is broadcasted
