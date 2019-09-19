@@ -8,6 +8,13 @@ def synch_weight(model, model_synch):
     for param, param_synch in zip(model.parameters(), model_synch.parameters()):
         param.data = param_synch.data + 0
 
+def weight_dif(model, model_synch,model_dif):
+    for param, param_synch, param_dif in zip(model.parameters(), model_synch.parameters(), model_dif.parameters()):
+        param_dif.data = param.data - param_synch.data + 0
+
+def weight_divide(model,num):
+    for param in model.parameters():
+       param.data = param.data/num
 
 # changing the learning rate of SGD
 def lr_change(lr_new, optim):
@@ -21,6 +28,14 @@ def average_model(net_avg, net_toavg):
     for param_avg, param_toavg in zip(net_avg.parameters(), net_toavg.parameters()):
         param_avg.data.mul_(0.5)
         param_avg.data.add_(0.5, param_toavg.data)
+    return None
+
+def average_model2(net_avg,net_toavg):
+    # net_toavg is broadcasted
+    # net_avg uses net_toavg to update its parameters
+    for param_avg, param_toavg in zip(net_avg.parameters(), net_toavg.parameters()):
+        param_avg.data.mul_(1/3)
+        param_avg.data.add_(2/3, param_toavg.data)
     return None
 
 def model_Bcast(bcast_model, opt, r, alpha):
@@ -40,9 +55,10 @@ def model_Bcast(bcast_model, opt, r, alpha):
             buf_bcast = param_state_bcast['momentum_buffer']
 
             if r==0:
-               param_state_bcast['momentum_buffer']=buf
+               param_state_bcast['momentum_buffer'] = buf
             elif p.grad is None:
                param_state_bcast['momentum_buffer']  = ((buf_bcast * alpha) + (buf * (1 - alpha))) * 0.9
+               print('hmm')
             else:
                param_state_bcast['momentum_buffer'] = (((buf_bcast * alpha) + (buf * (1 - alpha))) * 0.9) + p.grad.data
     return None
@@ -88,10 +104,6 @@ def weight_accumulate(model, agg_model, num):
         ps_param.data += param.data / num
     return None
 
-def modelavg(model,agg_model):
-    for param, ps_param in zip(model.parameters(), agg_model.parameters()):
-        ps_param.data = param.data
-    return None
 
 def momentum_zero(opt):
     for groupAvg in (opt.param_groups):  # momentum
